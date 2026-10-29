@@ -4,7 +4,7 @@ name: PocketRig APK
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "try/**" ]  # try/ branches build test APKs without touching master
     paths-ignore:
       - '**.md'
       - '.gitignore'
