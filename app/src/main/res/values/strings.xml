@@ -3148,4 +3148,27 @@
     <string name="support_wait_stop">Stop</string>
     <string name="support_reply_ready_tap">Tap to read it.</string>
     <string name="support_notify_me">Notify me when the reply arrives</string>
+
+    <!-- PocketRig: keeping containers small -->
+    <string name="pocketrig_slim_kind_shared">Shared base</string>
+    <string name="pocketrig_slim_kind_full">Full copy</string>
+    <string name="pocketrig_slim_reason_convertible">This container is a full copy of Windows, but it can move onto the shared base to free space.</string>
+    <string name="pocketrig_slim_reason_glibc">Full copy because it uses the glibc variant. Switch it to Bionic in the game\'s container settings to use the shared base.</string>
+    <string name="pocketrig_slim_reason_builtin">Full copy because it uses the built-in Wine. Pick a downloadable Wine or Proton in the game\'s container settings to use the shared base.</string>
+    <string name="pocketrig_slim_convert_button">Make shared</string>
+    <string name="pocketrig_slim_converting">Moving %1$s onto the shared base…</string>
+    <string name="pocketrig_slim_converted">Done. Freed %1$s</string>
+    <string name="pocketrig_slim_convert_failed">Couldn\'t convert: %1$s</string>
+    <string name="pocketrig_slim_clean_button">Clean up %1$s</string>
+    <string name="pocketrig_slim_clean_all_button">Clean up all (%1$s)</string>
+    <string name="pocketrig_slim_cleaning">Clearing shader caches and temp files…</string>
+    <string name="pocketrig_slim_cleaning_progress">Cleaning %1$d of %2$d: %3$s</string>
+    <string name="pocketrig_slim_cleaned">Freed %1$s. Games may stutter briefly the first time while shaders rebuild.</string>
+    <string name="pocketrig_slim_share_button">Share runtimes</string>
+    <string name="pocketrig_slim_share_title">Share runtime files?</string>
+    <string name="pocketrig_slim_share_message">Runtime files that are identical across your games (Visual C++, DirectX, .NET and similar) will be stored once instead of once per game. Each game still sees its own copy, and nothing is uninstalled. This can take a few minutes.</string>
+    <string name="pocketrig_slim_sharing">Looking for identical runtime files…</string>
+    <string name="pocketrig_slim_shared">Shared %1$d files and saved about %2$s</string>
+    <string name="pocketrig_slim_shared_none">Nothing to share: no identical runtime files found across your games</string>
+    <string name="pocketrig_slim_game_running">Close the running game first</string>
 </resources>

@@ -30,6 +30,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Delete
@@ -75,7 +78,10 @@ import app.gamenative.data.GameSource
 import app.gamenative.ui.screen.library.GameMigrationDialog
 import app.gamenative.ui.theme.PluviaTheme
 import app.gamenative.ui.util.SnackbarManager
+import app.gamenative.utils.ContainerSlimmer
 import app.gamenative.utils.ContainerStorageManager
+import com.winlator.xenvironment.ImageFs
+import java.io.File
 import app.gamenative.utils.StorageUtils
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -125,6 +131,131 @@ class ContainerStorageManagerUiState internal constructor(
 
     val isMoving: Boolean
         get() = movingEntryName != null
+
+    /** PocketRig: text for the progress dialog while slimming containers, or null when idle. */
+    var slimmingMessage by mutableStateOf<String?>(null)
+        private set
+
+    val isBusy: Boolean
+        get() = isMoving || slimmingMessage != null
+
+    var confirmShareRuntimes by mutableStateOf(false)
+        private set
+
+    val totalCleanableBytes: Long
+        get() = entries.filter { it.hasContainer }.sumOf { it.cleanableBytes }
+
+    private fun containerDir(entry: ContainerStorageManager.Entry): File =
+        File(File(ImageFs.find(appContext).rootDir, "home"), "${ImageFs.USER}-${entry.containerId}")
+
+    private fun blockedByRunningGame(): Boolean {
+        if (!ContainerSlimmer.isGameRunning()) return false
+        SnackbarManager.show(appContext.getString(R.string.pocketrig_slim_game_running))
+        return true
+    }
+
+    fun cleanUp(entry: ContainerStorageManager.Entry) {
+        if (isBusy || blockedByRunningGame()) return
+        scope.launch {
+            slimmingMessage = appContext.getString(R.string.pocketrig_slim_cleaning)
+            val result = try {
+                ContainerSlimmer.cleanUp(containerDir(entry))
+            } finally {
+                slimmingMessage = null
+            }
+            SnackbarManager.show(
+                appContext.getString(R.string.pocketrig_slim_cleaned, StorageUtils.formatBinarySize(result.bytesFreed)),
+            )
+            refresh()
+        }
+    }
+
+    fun cleanUpAll() {
+        if (isBusy || blockedByRunningGame()) return
+        scope.launch {
+            var freed = 0L
+            try {
+                val targets = entries.filter { it.hasContainer && it.cleanableBytes > 0 }
+                targets.forEachIndexed { i, entry ->
+                    slimmingMessage = appContext.getString(
+                        R.string.pocketrig_slim_cleaning_progress, i + 1, targets.size, entry.displayName,
+                    )
+                    freed += ContainerSlimmer.cleanUp(containerDir(entry)).bytesFreed
+                }
+            } finally {
+                slimmingMessage = null
+            }
+            SnackbarManager.show(
+                appContext.getString(R.string.pocketrig_slim_cleaned, StorageUtils.formatBinarySize(freed)),
+            )
+            refresh()
+        }
+    }
+
+    fun convertToShared(entry: ContainerStorageManager.Entry) {
+        if (isBusy || blockedByRunningGame()) return
+        scope.launch {
+            slimmingMessage = appContext.getString(R.string.pocketrig_slim_converting, entry.displayName)
+            val result = try {
+                ContainerSlimmer.convertToShared(appContext, entry.containerId)
+            } finally {
+                slimmingMessage = null
+            }
+            SnackbarManager.show(
+                result.fold(
+                    onSuccess = {
+                        appContext.getString(R.string.pocketrig_slim_converted, StorageUtils.formatBinarySize(it))
+                    },
+                    onFailure = {
+                        appContext.getString(
+                            R.string.pocketrig_slim_convert_failed,
+                            it.message ?: appContext.getString(R.string.container_storage_unknown_error),
+                        )
+                    },
+                ),
+            )
+            refresh()
+        }
+    }
+
+    fun requestShareRuntimes() {
+        if (isBusy || blockedByRunningGame()) return
+        confirmShareRuntimes = true
+    }
+
+    fun dismissShareRuntimes() {
+        confirmShareRuntimes = false
+    }
+
+    fun shareRuntimes() {
+        confirmShareRuntimes = false
+        if (isBusy || blockedByRunningGame()) return
+        scope.launch {
+            slimmingMessage = appContext.getString(R.string.pocketrig_slim_sharing)
+            val result = try {
+                ContainerSlimmer.shareRuntimes(appContext) { msg -> slimmingMessage = msg }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, "Sharing runtimes failed")
+                null
+            } finally {
+                slimmingMessage = null
+            }
+            SnackbarManager.show(
+                when {
+                    result == null -> appContext.getString(R.string.container_storage_unknown_error)
+                    result.filesLinked == 0 -> appContext.getString(R.string.pocketrig_slim_shared_none)
+                    else -> appContext.getString(
+                        R.string.pocketrig_slim_shared,
+                        result.filesLinked,
+                        StorageUtils.formatBinarySize(result.bytesSaved),
+                    )
+                },
+            )
+            refresh()
+        }
+    }
 
     fun ensureLoaded() {
         if (!hasLoaded && !isLoading) {
@@ -392,6 +523,41 @@ fun ContainerStorageManagerTransientUi(
         )
     }
 
+    if (state.confirmShareRuntimes) {
+        AlertDialog(
+            onDismissRequest = state::dismissShareRuntimes,
+            title = { Text(stringResource(R.string.pocketrig_slim_share_title)) },
+            text = { Text(stringResource(R.string.pocketrig_slim_share_message)) },
+            confirmButton = {
+                TextButton(onClick = state::shareRuntimes) {
+                    Text(stringResource(R.string.pocketrig_slim_share_button))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = state::dismissShareRuntimes) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    state.slimmingMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = {},
+            properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
+            confirmButton = {},
+            text = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                    Text(text = message)
+                }
+            },
+        )
+    }
+
     if (state.isMoving) {
         GameMigrationDialog(
             progress = state.moveProgress,
@@ -470,13 +636,41 @@ fun ContainerStorageManagerContent(
             if (onDismissRequest != null) {
                 IconButton(
                     onClick = onDismissRequest,
-                    enabled = !state.isMoving,
+                    enabled = !state.isBusy,
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = stringResource(R.string.close),
                     )
                 }
+            }
+        }
+
+        if (state.hasLoaded && state.entries.any { it.hasContainer }) {
+            Spacer(modifier = Modifier.height(10.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                StorageActionButton(
+                    text = stringResource(R.string.pocketrig_slim_share_button),
+                    icon = Icons.Default.Link,
+                    onClick = state::requestShareRuntimes,
+                    enabled = !state.isBusy,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                StorageActionButton(
+                    text = stringResource(
+                        R.string.pocketrig_slim_clean_all_button,
+                        StorageUtils.formatBinarySize(state.totalCleanableBytes),
+                    ),
+                    icon = Icons.Default.CleaningServices,
+                    onClick = state::cleanUpAll,
+                    enabled = !state.isBusy && state.totalCleanableBytes > 0,
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
             }
         }
 
@@ -537,7 +731,7 @@ fun ContainerStorageManagerContent(
                     items(state.entries, key = { it.containerId }) { entry ->
                         StorageEntryCard(
                             entry = entry,
-                            actionsEnabled = !state.isMoving,
+                            actionsEnabled = !state.isBusy,
                             onOpenGame = onOpenGame,
                             onMoveToExternal = {
                                 state.startMove(entry, ContainerStorageManager.MoveTarget.EXTERNAL)
@@ -547,6 +741,8 @@ fun ContainerStorageManagerContent(
                             },
                             onRemove = { state.requestRemove(entry) },
                             onUninstall = { state.requestUninstall(entry) },
+                            onCleanUp = { state.cleanUp(entry) },
+                            onConvert = { state.convertToShared(entry) },
                         )
                     }
                 }
@@ -567,7 +763,7 @@ fun ContainerStorageManagerDialog(
 
     Dialog(
         onDismissRequest = {
-            if (!state.isMoving) {
+            if (!state.isBusy) {
                 onDismissRequest()
             }
         },
@@ -612,6 +808,8 @@ private fun StorageEntryCard(
     onMoveToInternal: () -> Unit,
     onRemove: () -> Unit,
     onUninstall: () -> Unit,
+    onCleanUp: () -> Unit = {},
+    onConvert: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val displayName = entry.displayName.ifBlank {
@@ -694,6 +892,24 @@ private fun StorageEntryCard(
                     containerColor = statusContainerColor(entry.status),
                     contentColor = statusContentColor(entry.status),
                 )
+                if (entry.hasContainer && entry.prefixKind != ContainerSlimmer.PrefixKind.UNKNOWN) {
+                    val shared = entry.prefixKind == ContainerSlimmer.PrefixKind.SHARED
+                    MetadataChip(
+                        text = stringResource(
+                            if (shared) R.string.pocketrig_slim_kind_shared else R.string.pocketrig_slim_kind_full,
+                        ),
+                        containerColor = if (shared) {
+                            MaterialTheme.colorScheme.secondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.errorContainer
+                        },
+                        contentColor = if (shared) {
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onErrorContainer
+                        },
+                    )
+                }
                 if (storageLocation != ContainerStorageManager.StorageLocation.UNKNOWN) {
                     MetadataChip(
                         text = storageLocationLabel(storageLocation),
@@ -710,6 +926,50 @@ private fun StorageEntryCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            prefixExplanation(entry)?.let { explanation ->
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = explanation,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                )
+            }
+
+            val canClean = entry.hasContainer && entry.cleanableBytes > 0
+            val canConvert = entry.hasContainer && entry.prefixKind == ContainerSlimmer.PrefixKind.FULL_CONVERTIBLE
+            if (canClean || canConvert) {
+                Spacer(modifier = Modifier.height(14.dp))
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (canConvert) {
+                        StorageActionButton(
+                            text = stringResource(R.string.pocketrig_slim_convert_button),
+                            icon = Icons.Default.Layers,
+                            onClick = onConvert,
+                            enabled = actionsEnabled,
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    }
+                    if (canClean) {
+                        StorageActionButton(
+                            text = stringResource(
+                                R.string.pocketrig_slim_clean_button,
+                                StorageUtils.formatBinarySize(entry.cleanableBytes),
+                            ),
+                            icon = Icons.Default.CleaningServices,
+                            onClick = onCleanUp,
+                            enabled = actionsEnabled,
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    }
+                }
+            }
 
             val canRemoveContainer = entry.hasContainer
             if (canMoveToExternal || canMoveToInternal || entry.canUninstallGame || canRemoveContainer) {
@@ -920,6 +1180,17 @@ private fun sizeBreakdown(entry: ContainerStorageManager.Entry): String {
     }
 
     return parts.joinToString(" • ")
+}
+
+@Composable
+private fun prefixExplanation(entry: ContainerStorageManager.Entry): String? {
+    if (!entry.hasContainer) return null
+    return when (entry.prefixKind) {
+        ContainerSlimmer.PrefixKind.FULL_CONVERTIBLE -> stringResource(R.string.pocketrig_slim_reason_convertible)
+        ContainerSlimmer.PrefixKind.FULL_GLIBC -> stringResource(R.string.pocketrig_slim_reason_glibc)
+        ContainerSlimmer.PrefixKind.FULL_BUILTIN_WINE -> stringResource(R.string.pocketrig_slim_reason_builtin)
+        else -> null
+    }
 }
 
 @Composable

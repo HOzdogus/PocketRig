@@ -127,6 +127,10 @@ object ContainerStorageManager {
         val installPath: String? = null,
         val canUninstallGame: Boolean = false,
         val hasContainer: Boolean = true,
+        /** PocketRig: whether this container sits on the shared Wine base or is a full copy. */
+        val prefixKind: ContainerSlimmer.PrefixKind = ContainerSlimmer.PrefixKind.UNKNOWN,
+        /** PocketRig: shader caches and temp files that "Clean up" would remove. */
+        val cleanableBytes: Long = 0L,
     ) {
         val combinedSizeBytes: Long?
             get() = when {
@@ -729,6 +733,8 @@ object ContainerStorageManager {
             canUninstallGame = (status == Status.READY || status == Status.GAME_FILES_MISSING) &&
                 gameSource != null && gameSource != GameSource.CUSTOM_GAME,
             hasContainer = true,
+            prefixKind = ContainerSlimmer.prefixKind(config),
+            cleanableBytes = ContainerSlimmer.cleanableBytes(dir),
         )
     }
 
