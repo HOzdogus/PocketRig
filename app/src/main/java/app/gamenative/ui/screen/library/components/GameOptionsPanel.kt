@@ -332,6 +332,7 @@ private fun getIconForOption(type: AppOptionMenuType): ImageVector {
         AppOptionMenuType.CreateShortcut -> Icons.AutoMirrored.Filled.AddToHomeScreen
         AppOptionMenuType.ExportFrontend -> Icons.Default.Share
         AppOptionMenuType.CopyLaunchLink -> Icons.Default.Link
+        AppOptionMenuType.PlayOnGeForceNow -> Icons.AutoMirrored.Filled.OpenInNew
         AppOptionMenuType.RunContainer -> Icons.Default.PlayArrow
         AppOptionMenuType.EditContainer -> Icons.Default.Settings
         AppOptionMenuType.ResetToDefaults -> Icons.Default.RestartAlt
@@ -386,6 +387,7 @@ private fun groupOptions(options: List<AppMenuOption>): Map<OptionCategory, List
             AppOptionMenuType.CreateShortcut,
             AppOptionMenuType.ExportFrontend,
             AppOptionMenuType.CopyLaunchLink,
+            AppOptionMenuType.PlayOnGeForceNow,
             AppOptionMenuType.AddToFavorites,
             AppOptionMenuType.RemoveFromFavorites,
             -> quickActions.add(option)

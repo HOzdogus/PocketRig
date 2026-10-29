@@ -8,6 +8,7 @@ enum class AppOptionMenuType(@StringRes val title: Int) {
     CreateShortcut(R.string.create_shortcut),
     ExportFrontend(R.string.option_export_for_frontend),
     CopyLaunchLink(R.string.option_copy_launch_link),
+    PlayOnGeForceNow(R.string.pocketrig_option_geforce_now),
     RunContainer(R.string.option_open_container),
     EditContainer(R.string.option_edit_container),
     ResetToDefaults(R.string.option_reset_to_defaults),

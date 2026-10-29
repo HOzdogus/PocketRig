@@ -610,6 +610,40 @@ abstract class BaseAppScreen {
     }
 
     /**
+     * PocketRig: opens GeForce NOW's web player in a Chrome tab (real Chrome, so controllers,
+     * full screen and your GeForce NOW login all work), with the game's name copied ready to
+     * paste into its search. Subclasses can return null to hide it.
+     */
+    @Composable
+    protected open fun getPlayOnGeForceNowOption(
+        context: Context,
+        libraryItem: LibraryItem,
+    ): AppMenuOption? {
+        val gameName = getGameName(context, libraryItem)
+        return AppMenuOption(
+            optionType = AppOptionMenuType.PlayOnGeForceNow,
+            onClick = {
+                val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+                clipboard?.setPrimaryClip(ClipData.newPlainText("Game name", gameName))
+                android.widget.Toast.makeText(
+                    context,
+                    context.getString(R.string.pocketrig_gfn_copied, gameName),
+                    android.widget.Toast.LENGTH_LONG,
+                ).show()
+                val uri = android.net.Uri.parse("https://play.geforcenow.com/")
+                try {
+                    androidx.browser.customtabs.CustomTabsIntent.Builder()
+                        .setShowTitle(true)
+                        .build()
+                        .launchUrl(context, uri)
+                } catch (e: Exception) {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }
+            },
+        )
+    }
+
+    /**
      * Get "Use known config" menu option. Subclasses can override to customize behavior
      * or disable it entirely by returning null.
      */
@@ -1230,6 +1264,7 @@ abstract class BaseAppScreen {
         if (!libraryItem.isRecommended) {
             menuOptions.add(getFavoriteOption(libraryItem))
         }
+        getPlayOnGeForceNowOption(context, libraryItem)?.let { menuOptions.add(it) }
         menuOptions.add(getSubmitFeedbackOption(context, libraryItem))
         menuOptions.add(getGetSupportOption(context))
 

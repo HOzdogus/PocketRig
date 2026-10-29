@@ -38,9 +38,12 @@ object ItchInstaller {
         val mimeType: String?,
         val gameTitle: String,
         val coverUrl: String?,
+        /** Known file name (from itch's API), when the URL itself doesn't carry one. */
+        val fileNameOverride: String? = null,
     ) {
         val fileName: String
-            get() = URLUtil.guessFileName(url, contentDisposition, mimeType)
+            get() = fileNameOverride?.takeIf { it.isNotBlank() }
+                ?: URLUtil.guessFileName(url, contentDisposition, mimeType)
     }
 
     enum class Platform { WINDOWS, ANDROID, MAC, LINUX, UNKNOWN }

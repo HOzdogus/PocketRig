@@ -3171,4 +3171,6 @@
     <string name="pocketrig_slim_shared">Shared %1$d files and saved about %2$s</string>
     <string name="pocketrig_slim_shared_none">Nothing to share: no identical runtime files found across your games</string>
     <string name="pocketrig_slim_game_running">Close the running game first</string>
+    <string name="pocketrig_option_geforce_now">Play on GeForce NOW</string>
+    <string name="pocketrig_gfn_copied">Copied \"%1$s\". Paste it into GeForce NOW\'s search.</string>
 </resources>
