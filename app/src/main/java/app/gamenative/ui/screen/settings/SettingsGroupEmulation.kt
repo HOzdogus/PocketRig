@@ -102,6 +102,24 @@ fun SettingsGroupEmulation() {
                 PrefManager.autoApplyKnownConfig = it
             },
         )
+        // PocketRig: fast-forward (speed hack). Loaded at game start, so changes apply next launch.
+        val speedContext = LocalContext.current
+        var fastForward by rememberSaveable { mutableStateOf(app.gamenative.speed.SpeedControl.isEnabled(speedContext)) }
+        SettingsSwitch(
+            colors = settingsTileColorsAlt(),
+            state = fastForward,
+            title = { Text(text = "Fast-forward (experimental)") },
+            subtitle = {
+                Text(
+                    text = "Adds game speed buttons (up to 4×) to the in-game menu's Tools tab. " +
+                        "Bionic containers only. Takes effect the next time you start a game. Not for online games.",
+                )
+            },
+            onCheckedChange = {
+                fastForward = it
+                app.gamenative.speed.SpeedControl.setEnabled(speedContext, it)
+            },
+        )
         SettingsMenuLink(
             colors = settingsTileColors(),
             title = { Text(text = stringResource(R.string.settings_emulation_box64_presets_title)) },

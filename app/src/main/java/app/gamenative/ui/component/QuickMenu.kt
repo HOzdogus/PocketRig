@@ -1131,13 +1131,16 @@ fun QuickMenu(
                                     }
 
                                     QuickMenuTab.TOOLS -> {
-                                        ToolsQuickMenuTab(
-                                            processes = wineProcesses,
-                                            isLoadingProcesses = isWineProcessesLoading,
-                                            onEndProcess = onEndWineProcess,
-                                            firstItemFocusRequester = toolsItemFocusRequester,
-                                            modifier = Modifier.fillMaxSize(),
-                                        )
+                                        Column(modifier = Modifier.fillMaxSize()) {
+                                            app.gamenative.speed.FastForwardRow()
+                                            ToolsQuickMenuTab(
+                                                processes = wineProcesses,
+                                                isLoadingProcesses = isWineProcessesLoading,
+                                                onEndProcess = onEndWineProcess,
+                                                firstItemFocusRequester = toolsItemFocusRequester,
+                                                modifier = Modifier.fillMaxWidth().weight(1f),
+                                            )
+                                        }
                                     }
 
                                     QuickMenuTab.IMMERSIVE -> {

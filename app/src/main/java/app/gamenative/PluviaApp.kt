@@ -308,6 +308,9 @@ class PluviaApp : SplitCompatApplication() {
             // Stop performance driver
             PowerManager.stop()
 
+            runCatching { app.gamenative.speed.SpeedControl.endSession() }
+                .onFailure { Timber.e(it, "shutdownEnvironment: SpeedControl.endSession") }
+
             xEnvironment = null
             inputControlsView = null
             inputControlsManager = null

@@ -383,6 +383,13 @@ public class BionicProgramLauncherComponent extends GuestProgramLauncherComponen
         }
         if (replacePath != null) ld_preload += ":" + replacePath;
 
+        // PocketRig fast-forward: put the clock library first so the game's timers go through it.
+        kotlin.Pair<String, String> speed = app.gamenative.speed.SpeedControl.prepareForLaunch(context);
+        if (speed != null) {
+            ld_preload = speed.getFirst() + (ld_preload.isEmpty() ? "" : ":" + ld_preload);
+            envVars.put("POCKETRIG_SPEED_FILE", speed.getSecond());
+        }
+
         envVars.put("LD_PRELOAD", ld_preload);
         envVars.put("EVSHIM_WINE", 1);
         envVars.put("EVSHIM_SHM_NAME", "controller-shm0");
