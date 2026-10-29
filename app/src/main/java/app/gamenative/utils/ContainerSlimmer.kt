@@ -174,7 +174,7 @@ object ContainerSlimmer {
                 if (!f.isFile || isLink(f)) return@forEach
                 if (!RUNTIME_DLL.matches(f.name)) return@forEach
                 if (ContainerFiles.isAppManaged("$rel/${f.name}")) return@forEach
-                if (f.length() >= MIN_SHARE_BYTES) out += f.toPath()
+                if (f.length() >= MIN_SHARE_BYTES) out.add(f.toPath())
             }
         }
         for (rel in RUNTIME_TREES) {
@@ -187,7 +187,7 @@ object ContainerSlimmer {
                         if (attrs.isRegularFile && attrs.size() >= MIN_SHARE_BYTES &&
                             !name.endsWith(".log") && !name.endsWith(".tmp")
                         ) {
-                            out += file
+                            out.add(file)
                         }
                         return FileVisitResult.CONTINUE
                     }
@@ -218,7 +218,7 @@ object ContainerSlimmer {
         for (dir in containers) {
             for (file in runtimeFiles(dir)) {
                 val size = runCatching { Files.size(file) }.getOrNull() ?: continue
-                bySize.getOrPut(size) { mutableListOf() } += file
+                bySize.getOrPut(size) { mutableListOf() }.add(file)
             }
         }
 
@@ -238,7 +238,7 @@ object ContainerSlimmer {
             val byHash = HashMap<String, MutableList<List<Path>>>()
             for ((_, sameInode) in byInode) {
                 val hash = sha256(sameInode.first()) ?: continue
-                byHash.getOrPut(hash) { mutableListOf() } += sameInode
+                byHash.getOrPut(hash) { mutableListOf() }.add(sameInode)
             }
             for ((_, inodeGroups) in byHash) {
                 if (inodeGroups.size < 2) continue
