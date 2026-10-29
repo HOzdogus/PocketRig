@@ -60,14 +60,13 @@ jobs:
           mkdir -p ~/.android
           cp ci/pocketrig-debug.keystore ~/.android/debug.keystore
 
-      # No analytics keys: PocketRig doesn't send usage data to GameNative's PostHog.
+      # A dummy analytics key: PocketRig doesn't report usage to GameNative's PostHog.
+      # (Every line here becomes a BuildConfig field, so no empty values.)
       - name: Write build settings
         run: |
           cat <<EOF > local.properties
           POSTHOG_API_KEY=dummy
           POSTHOG_HOST=https://us.i.posthog.com
-          STEAMGRIDDB_API_KEY=
-          CLOUD_PROJECT_NUMBER=
           EOF
 
       - name: Install Android SDK Build Tools
