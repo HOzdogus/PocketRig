@@ -79,7 +79,26 @@ jobs:
           yes | "$SDKMANAGER" --install "build-tools;34.0.0"
 
       - name: Build
-        run: ./gradlew -Pkotlin.daemon.jvmargs=-Xmx3g :app:bundleModernRelease
+        run: |
+          set -o pipefail
+          ./gradlew -Pkotlin.daemon.jvmargs=-Xmx3g :app:bundleModernRelease 2>&1 | tee build.log
+
+      # Shows the reason for a failed build as notes on the run summary page.
+      - name: Explain build failure
+        if: failure()
+        run: |
+          [ -f build.log ] || exit 0
+          {
+            grep -n -E "^e: |error:|FAILURE:|What went wrong|> Task .* FAILED|Execution failed|Caused by|Could not|not found|Exception" build.log | head -60
+            echo "----- last lines -----"
+            tail -n 60 build.log
+          } > reason.txt
+          i=0
+          while IFS= read -r line; do
+            i=$((i+1))
+            msg=$(printf '%s' "$line" | sed 's/%/%25/g' | cut -c1-900)
+            echo "::warning title=build log $i::$msg"
+          done < reason.txt
 
       - name: Make installable APK
         run: |
