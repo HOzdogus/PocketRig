@@ -535,8 +535,13 @@ private fun LibraryScreenContent(
         }
     }
 
+    // PocketRig: "Add game" first asks whether to browse itch.io or add a folder.
+    var showAddSourceChooser by remember { mutableStateOf(false) }
+    var showItchBrowser by remember { mutableStateOf(false) }
+    val onAddCustomGameClick = { showAddSourceChooser = true }
+
     // Handle opening folder picker (with dialog check)
-    val onAddCustomGameClick = {
+    val onAddFromFolderClick = {
         if (BuildConfig.MODERN_ANDROID) {
             showModernImportDialog = true
         } else if (PrefManager.showAddCustomGameDialog) {
@@ -1373,6 +1378,45 @@ private fun LibraryScreenContent(
                 },
             )
 
+        }
+
+        // PocketRig: choose where the new game comes from.
+        if (showAddSourceChooser) {
+            AlertDialog(
+                onDismissRequest = { showAddSourceChooser = false },
+                title = { Text(stringResource(R.string.add_custom_game_dialog_title)) },
+                text = {
+                    Column {
+                        TextButton(
+                            onClick = {
+                                showAddSourceChooser = false
+                                showItchBrowser = true
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text("Browse itch.io") }
+                        TextButton(
+                            onClick = {
+                                showAddSourceChooser = false
+                                onAddFromFolderClick()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text("Add from a folder on this phone") }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { showAddSourceChooser = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+            )
+        }
+
+        if (showItchBrowser) {
+            app.gamenative.itch.ItchBrowserDialog(
+                onDismissRequest = { showItchBrowser = false },
+                onInstalled = { folder -> onAddCustomGameFolder(folder.absolutePath) },
+            )
         }
 
         // Pre-import dialog (modern add path)
