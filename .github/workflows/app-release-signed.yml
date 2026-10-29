@@ -1,14 +1,8 @@
 name: Android CI
 
+# PocketRig: upstream's signed release needs their private keys, so it only runs by hand here.
+# PocketRig's own APKs come from pocketrig-build.yml.
 on:
-  push:
-    branches: [ "master" ]
-    paths-ignore:
-      - '**.md'
-      - '.gitignore'
-      - 'keyvalues/**'
-      - 'media/**'
-      - '.github/ISSUE_TEMPLATE/**'
   workflow_dispatch:
 
 concurrency:
