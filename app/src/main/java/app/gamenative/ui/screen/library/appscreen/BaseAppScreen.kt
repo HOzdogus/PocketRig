@@ -625,11 +625,9 @@ abstract class BaseAppScreen {
             onClick = {
                 val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
                 clipboard?.setPrimaryClip(ClipData.newPlainText("Game name", gameName))
-                android.widget.Toast.makeText(
-                    context,
+                app.gamenative.ui.util.SnackbarManager.show(
                     context.getString(R.string.pocketrig_gfn_copied, gameName),
-                    android.widget.Toast.LENGTH_LONG,
-                ).show()
+                )
                 val uri = android.net.Uri.parse("https://play.geforcenow.com/")
                 try {
                     androidx.browser.customtabs.CustomTabsIntent.Builder()
