@@ -91,6 +91,16 @@ enum class LibraryTab(
         showAmazon = false,
         installedOnly = false,
     ),
+    /** PocketRig: DOS games, played with the built-in DOSBox Pure player. Has its own list. */
+    DOS(
+        labelResId = R.string.pocketrig_tab_dos,
+        showCustom = false,
+        showSteam = false,
+        showGoG = false,
+        showEpic = false,
+        showAmazon = false,
+        installedOnly = false,
+    ),
     ;
 
     companion object {

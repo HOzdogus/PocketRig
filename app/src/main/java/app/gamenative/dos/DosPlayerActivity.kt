@@ -42,6 +42,13 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.text.DateFormat
+import java.util.Date
 import com.swordfish.libretrodroid.GLRetroView
 import com.swordfish.libretrodroid.GLRetroViewData
 import com.swordfish.libretrodroid.ShaderConfig
@@ -74,6 +81,56 @@ class DosPlayerActivity : ComponentActivity() {
     }
 
     private var retroView: GLRetroView? = null
+    private lateinit var statesDir: File
+
+    /** Save-state file for a slot; slot 0 is the automatic one made when you exit. */
+    private fun stateFile(slot: Int): File = File(statesDir, if (slot == 0) "auto.state" else "slot$slot.state")
+
+    private fun slotLabel(slot: Int): String {
+        val f = stateFile(slot)
+        return if (f.isFile) {
+            DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(f.lastModified()))
+        } else {
+            "empty"
+        }
+    }
+
+    private suspend fun saveState(slot: Int): Boolean {
+        val view = retroView ?: return false
+        return try {
+            val bytes = withContext(Dispatchers.IO) { view.serializeState() }
+            if (bytes.isEmpty()) return false
+            withContext(Dispatchers.IO) {
+                val tmp = File(statesDir, "${stateFile(slot).name}.tmp")
+                tmp.writeBytes(bytes)
+                tmp.renameTo(stateFile(slot))
+            }
+            true
+        } catch (e: Exception) {
+            Timber.w(e, "Couldn't save DOS state")
+            false
+        }
+    }
+
+    private suspend fun loadState(slot: Int): Boolean {
+        val view = retroView ?: return false
+        val f = stateFile(slot)
+        if (!f.isFile) return false
+        return try {
+            val bytes = withContext(Dispatchers.IO) { f.readBytes() }
+            withContext(Dispatchers.IO) { view.unserializeState(bytes) }
+        } catch (e: Exception) {
+            Timber.w(e, "Couldn't load DOS state")
+            false
+        }
+    }
+
+    private fun exitWithAutoSave() {
+        lifecycleScope.launch {
+            saveState(0)
+            finish()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -91,6 +148,7 @@ class DosPlayerActivity : ComponentActivity() {
             return
         }
 
+        statesDir = File(DosGames.statesFolder(this), File(gamePath).name).apply { mkdirs() }
         val system = File(filesDir, "dos/system").apply { mkdirs() }
         val saves = File(filesDir, "dos/saves").apply { mkdirs() }
 
@@ -126,7 +184,23 @@ class DosPlayerActivity : ComponentActivity() {
                         onKey = { code, down ->
                             view.sendKeyEvent(if (down) KeyEvent.ACTION_DOWN else KeyEvent.ACTION_UP, code)
                         },
-                        onExit = { finish() },
+                        onExit = ::exitWithAutoSave,
+                        hasResume = stateFile(0).isFile,
+                        slotLabel = ::slotLabel,
+                        onSave = { slot, done -> lifecycleScope.launch { done(saveState(slot)) } },
+                        onLoad = { slot, done ->
+                            lifecycleScope.launch {
+                                // Right after launch the game may still be starting, so retry briefly.
+                                var ok = loadState(slot)
+                                var tries = 0
+                                while (!ok && tries < 5 && stateFile(slot).isFile) {
+                                    delay(800)
+                                    ok = loadState(slot)
+                                    tries++
+                                }
+                                done(ok)
+                            }
+                        },
                     )
                 }
             },
@@ -137,6 +211,14 @@ class DosPlayerActivity : ComponentActivity() {
         )
         setContentView(root)
         view.requestFocus()
+
+        // Back exits the game, saving where you left off.
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : androidx.activity.OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() = exitWithAutoSave()
+            },
+        )
     }
 
     // A physical controller goes straight to the game, even if the overlay has focus.
@@ -179,8 +261,33 @@ class DosPlayerActivity : ComponentActivity() {
 
 /** On-screen controls. DOSBox Pure maps these buttons to each game's keys automatically. */
 @Composable
-private fun DosOverlay(onKey: (Int, Boolean) -> Unit, onExit: () -> Unit) {
+private fun DosOverlay(
+    onKey: (Int, Boolean) -> Unit,
+    onExit: () -> Unit,
+    hasResume: Boolean,
+    slotLabel: (Int) -> String,
+    onSave: (slot: Int, done: (Boolean) -> Unit) -> Unit,
+    onLoad: (slot: Int, done: (Boolean) -> Unit) -> Unit,
+) {
     var visible by remember { mutableStateOf(true) }
+    var slot by remember { mutableStateOf(1) }
+    var message by remember { mutableStateOf<String?>(null) }
+    var showResume by remember { mutableStateOf(hasResume) }
+    var refresh by remember { mutableStateOf(0) }
+
+    androidx.compose.runtime.LaunchedEffect(message) {
+        if (message != null) {
+            delay(2500)
+            message = null
+        }
+    }
+    androidx.compose.runtime.LaunchedEffect(showResume) {
+        if (showResume) {
+            delay(10_000)
+            showResume = false
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier
@@ -191,10 +298,50 @@ private fun DosOverlay(onKey: (Int, Boolean) -> Unit, onExit: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             TextButton(onClick = onExit) { Text("Exit", color = Color.White) }
+            TextButton(onClick = { slot = slot % 3 + 1 }) {
+                // Reading refresh makes the label update after a save.
+                val label = if (refresh >= 0) slotLabel(slot) else ""
+                Text("Slot $slot ($label)", color = Color.White)
+            }
+            TextButton(onClick = {
+                onSave(slot) { ok ->
+                    message = if (ok) "Saved to slot $slot" else "Couldn't save"
+                    refresh++
+                }
+            }) { Text("Save", color = Color.White) }
+            TextButton(onClick = {
+                onLoad(slot) { ok -> message = if (ok) "Loaded slot $slot" else "Slot $slot is empty" }
+            }) { Text("Load", color = Color.White) }
             TextButton(onClick = { visible = !visible }) {
                 Text(if (visible) "Hide pad" else "Show pad", color = Color.White)
             }
         }
+
+        if (showResume) {
+            TextButton(
+                onClick = {
+                    showResume = false
+                    onLoad(0) { ok -> message = if (ok) "Resumed where you left off" else "Couldn't resume" }
+                },
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 8.dp),
+            ) { Text("Resume where you left off", color = Color.White, fontSize = 18.sp) }
+        }
+
+        message?.let {
+            Text(
+                it,
+                color = Color.White,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 56.dp)
+                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+        }
+
         if (!visible) return@Box
 
         Column(Modifier.align(Alignment.BottomStart).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {

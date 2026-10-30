@@ -67,6 +67,9 @@ object DosGames {
             ?.sortedBy { it.name.lowercase(Locale.ROOT) }
             .orEmpty()
 
+    /** Save states live in one folder per game. */
+    fun statesFolder(context: Context): File = File(context.filesDir, "dos/states").apply { mkdirs() }
+
     fun displayName(file: File): String =
         file.nameWithoutExtension.replace('_', ' ').replace(Regex("\\s+"), " ").trim()
 
@@ -90,9 +93,32 @@ object DosGames {
     }
 }
 
-/** PocketRig: the DOS games list. Add a game (usually a .zip), then tap it to play. */
+/** PocketRig: the DOS games list as a full-screen dialog. */
 @Composable
 fun DosLibraryDialog(onDismissRequest: () -> Unit) {
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            DosLibraryContent(
+                modifier = Modifier.fillMaxSize().statusBarsPadding(),
+                onClose = onDismissRequest,
+            )
+        }
+    }
+}
+
+/**
+ * PocketRig: the DOS games list (used by the library's DOS tab). Add a game (usually a .zip),
+ * then tap it to play.
+ */
+@Composable
+fun DosLibraryContent(
+    modifier: Modifier = Modifier,
+    onClose: (() -> Unit)? = null,
+    onCountChanged: (Int) -> Unit = {},
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var games by remember { mutableStateOf(DosGames.list(context)) }
@@ -112,16 +138,13 @@ fun DosLibraryDialog(onDismissRequest: () -> Unit) {
             }
             importing = false
             games = DosGames.list(context)
+            onCountChanged(games.size)
             if (added > 0) SnackbarManager.show(if (added == 1) "Added 1 DOS game" else "Added $added DOS games")
         }
     }
 
-    Dialog(
-        onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            Column(Modifier.fillMaxSize().statusBarsPadding().padding(16.dp)) {
+    Box(modifier) {
+            Column(Modifier.fillMaxSize().padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         "DOS games",
@@ -129,7 +152,9 @@ fun DosLibraryDialog(onDismissRequest: () -> Unit) {
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f),
                     )
-                    IconButton(onClick = onDismissRequest) { Icon(Icons.Default.Close, contentDescription = "Close") }
+                    if (onClose != null) {
+                        IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = "Close") }
+                    }
                 }
                 Text(
                     "Add a DOS game as a .zip (or .exe, .iso, .cue). The first time you play, pick which " +
@@ -194,7 +219,6 @@ fun DosLibraryDialog(onDismissRequest: () -> Unit) {
                     }
                 }
             }
-        }
 
         confirmDelete?.let { game ->
             AlertDialog(
@@ -204,8 +228,10 @@ fun DosLibraryDialog(onDismissRequest: () -> Unit) {
                 confirmButton = {
                     TextButton(onClick = {
                         game.delete()
+                        File(DosGames.statesFolder(context), game.name).deleteRecursively()
                         confirmDelete = null
                         games = DosGames.list(context)
+                        onCountChanged(games.size)
                     }) { Text("Remove") }
                 },
                 dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text("Cancel") } },

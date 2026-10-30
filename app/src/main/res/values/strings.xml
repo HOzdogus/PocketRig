@@ -3173,4 +3173,5 @@
     <string name="pocketrig_slim_game_running">Close the running game first</string>
     <string name="pocketrig_option_geforce_now">Play on GeForce NOW</string>
     <string name="pocketrig_gfn_copied">Copied \"%1$s\". Paste it into GeForce NOW\'s search.</string>
+    <string name="pocketrig_tab_dos">DOS</string>
 </resources>

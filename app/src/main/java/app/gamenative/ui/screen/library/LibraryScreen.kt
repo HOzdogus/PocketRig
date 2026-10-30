@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -540,6 +541,7 @@ private fun LibraryScreenContent(
     // null = closed; otherwise which start point the browser opens on.
     var browserStart by remember { mutableStateOf<BrowserStart?>(null) }
     var showDosLibrary by remember { mutableStateOf(false) }
+    var dosCount by remember { mutableIntStateOf(app.gamenative.dos.DosGames.list(context).size) }
     val onAddCustomGameClick = { showAddSourceChooser = true }
 
     // Handle opening folder picker (with dialog check)
@@ -1045,7 +1047,13 @@ private fun LibraryScreenContent(
                 // blank screen (or the empty message before stored favorites arrive).
                 val showFavoritesEmptyState = state.currentTab == LibraryTab.FAVORITES &&
                     favoritesLoaded && !state.isLoading && state.appInfoList.isEmpty()
-                if (showEmptyStateSplash) {
+                if (state.currentTab == LibraryTab.DOS) {
+                    // PocketRig: the DOS tab shows its own list instead of the game grid.
+                    app.gamenative.dos.DosLibraryContent(
+                        modifier = Modifier.fillMaxSize().statusBarsPadding().padding(top = 72.dp),
+                        onCountChanged = { dosCount = it },
+                    )
+                } else if (showEmptyStateSplash) {
                     val (messageResId, buttonResId, onAction) = when (state.currentTab) {
                         LibraryTab.STEAM -> Triple(
                             R.string.library_source_not_logged_in_steam,
@@ -1184,6 +1192,7 @@ private fun LibraryScreenContent(
                             LibraryTab.EPIC to state.epicCount,
                             LibraryTab.AMAZON to state.amazonCount,
                             LibraryTab.LOCAL to state.localCount,
+                            LibraryTab.DOS to dosCount,
                         ),
                         onTabSelected = onTabChanged,
                         onOptionsClick = { onOptionsPanelToggle(true) },
@@ -1413,7 +1422,7 @@ private fun LibraryScreenContent(
                         TextButton(
                             onClick = {
                                 showAddSourceChooser = false
-                                showDosLibrary = true
+                                onTabChanged(LibraryTab.DOS)
                             },
                             modifier = Modifier.fillMaxWidth(),
                         ) { Text("DOS games") }
