@@ -251,6 +251,14 @@
             android:name=".service.NotificationActionReceiver"
             android:exported="false" />
 
+        <!-- PocketRig: built-in DOS player (DOSBox Pure via LibretroDroid) -->
+        <activity
+            android:name=".dos.DosPlayerActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|keyboard|navigation|uiMode"
+            android:exported="false"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@style/Theme.Pluvia" />
+
         <!-- FileProvider for secure file sharing (for APK installation) -->
         <provider
             android:name="androidx.core.content.FileProvider"

@@ -88,6 +88,16 @@ jobs:
             app/src/main/cpp/pocketspeed/pocketspeed.c -ldl
           ls -la app/src/main/jniLibs/arm64-v8a/libpocketspeed.so
 
+      # PocketRig DOS player: DOSBox Pure (GPL-2.0-or-later) from libretro's Android builds.
+      - name: Fetch DOSBox Pure core
+        run: |
+          mkdir -p /tmp/core app/src/main/jniLibs/arm64-v8a
+          curl -fsSL -o /tmp/core/dosbox_pure.zip \
+            https://buildbot.libretro.com/nightly/android/latest/arm64-v8a/dosbox_pure_libretro_android.so.zip
+          unzip -o -q /tmp/core/dosbox_pure.zip -d /tmp/core
+          cp /tmp/core/dosbox_pure_libretro_android.so app/src/main/jniLibs/arm64-v8a/libdosbox_pure_libretro_android.so
+          ls -la app/src/main/jniLibs/arm64-v8a/libdosbox_pure_libretro_android.so
+
       - name: Build
         run: |
           set -o pipefail

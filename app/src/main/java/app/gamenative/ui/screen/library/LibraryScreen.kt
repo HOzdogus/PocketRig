@@ -539,6 +539,7 @@ private fun LibraryScreenContent(
     var showAddSourceChooser by remember { mutableStateOf(false) }
     // null = closed; otherwise which start point the browser opens on.
     var browserStart by remember { mutableStateOf<BrowserStart?>(null) }
+    var showDosLibrary by remember { mutableStateOf(false) }
     val onAddCustomGameClick = { showAddSourceChooser = true }
 
     // Handle opening folder picker (with dialog check)
@@ -1412,6 +1413,13 @@ private fun LibraryScreenContent(
                         TextButton(
                             onClick = {
                                 showAddSourceChooser = false
+                                showDosLibrary = true
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text("DOS games") }
+                        TextButton(
+                            onClick = {
+                                showAddSourceChooser = false
                                 onAddFromFolderClick()
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -1425,6 +1433,10 @@ private fun LibraryScreenContent(
                     }
                 },
             )
+        }
+
+        if (showDosLibrary) {
+            app.gamenative.dos.DosLibraryDialog(onDismissRequest = { showDosLibrary = false })
         }
 
         browserStart?.let { start ->

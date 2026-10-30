@@ -225,6 +225,8 @@ android {
             // 'extractNativeLibs' was not enough to keep the jniLibs and
             // the libs went missing after adding on-demand feature delivery
             useLegacyPackaging = true
+            // PocketRig: LibretroDroid ships its own copy of the C++ runtime too.
+            pickFirsts += "**/libc++_shared.so"
         }
     }
     testOptions {
@@ -419,6 +421,8 @@ dependencies {
 
     // Chrome Custom Tabs for GOG OAuth
     implementation("androidx.browser:browser:1.8.0")
+    // PocketRig: libretro player for the built-in DOS emulator (DOSBox Pure core)
+    implementation("com.github.swordfish90:libretrodroid:0.14.0")
     implementation("com.revenuecat.purchases:purchases:10.15.1")
     implementation("androidx.documentfile:documentfile:1.0.1")
 

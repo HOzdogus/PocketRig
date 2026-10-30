@@ -17,6 +17,11 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven { url = uri("https://central.sonatype.com/repository/maven-snapshots/") } // JavaSteam
+        // PocketRig: LibretroDroid (libretro player used for DOS games)
+        maven {
+            url = uri("https://jitpack.io")
+            content { includeGroup("com.github.swordfish90") }
+        }
     }
 }
 
